@@ -1,0 +1,80 @@
+services:
+  customer-page:
+    build:
+      context: ./customer page
+      dockerfile: Dockerfile
+    container_name: khalti-careers-customer
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+      - API_URL=${API_URL}
+    networks:
+      - frontend-network
+
+  recruiter-view:
+    build:
+      context: ./recruiter view
+      dockerfile: Dockerfile
+    container_name: khalti-careers-recruiter
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - HOST=0.0.0.0
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+    networks:
+      - frontend-network
+     
+  db:
+    image: postgres:15-alpine
+    container_name: khalti-careers-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend-network
+
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: khalti-careers-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PROJECT_NAME=${PROJECT_NAME}
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - BASE_URL=${BASE_URL}
+      - RECAPTCHA_API_KEY=${RECAPTCHA_API_KEY}
+      - RECAPTCHA_PROJECT_ID=${RECAPTCHA_PROJECT_ID}
+      - RECAPTCHA_SITE_KEY=${RECAPTCHA_SITE_KEY}
+    volumes:
+      - ./static/cvs:/usr/src/app/static/cvs
+    depends_on:
+      - db
+    networks:
+      - frontend-network
+      - backend-network
+
+volumes:
+  pgdata:
+
+networks:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
