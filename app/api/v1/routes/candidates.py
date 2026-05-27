@@ -511,7 +511,7 @@ def get_candidate_by_id(
     return candidate
 
 
-@router.patch("/{candidate_id}/stage", response_model=CandidateResponse)
+@router.post("/{candidate_id}/stage", response_model=CandidateResponse)
 def update_candidate_stage(
     candidate_id: str,
     stage_update: CandidateStageUpdate,

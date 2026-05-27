@@ -50,7 +50,7 @@ def create_job(
     
     return db_job
 
-@router.patch("/{job_id}/status", response_model=JobResponse)
+@router.post("/{job_id}/status", response_model=JobResponse)
 def update_job_status(
     job_id: str,
     status_update: JobStatusUpdate,

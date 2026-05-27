@@ -57,7 +57,7 @@ export const api = {
     apiFetch<Job>("/jobs/create", { method: "POST", body: JSON.stringify(data) }),
   updateJobStatus: (id: string, status: string) =>
     apiFetch<Job>(`/jobs/${id}/status`, {
-      method: "PATCH",
+      method: "POST",
       body: JSON.stringify({ status }),
     }),
 
@@ -94,7 +94,7 @@ export const api = {
   },
   updateCandidateStage: (id: string, stage: string) =>
     apiFetch<Candidate>(`/candidates/${id}/stage`, {
-      method: "PATCH",
+      method: "POST",
       body: JSON.stringify({ stage }),
     }),
   addCandidateNote: (id: string, content: string) =>

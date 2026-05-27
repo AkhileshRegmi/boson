@@ -28,7 +28,7 @@ def get_team(
 ):
     return db.query(User).offset(skip).limit(limit).all()
 
-@router.patch("/{user_id}/role", response_model=UserResponse)
+@router.post("/{user_id}/role", response_model=UserResponse)
 def update_role(
     user_id: str,
     role_update: RoleUpdate,

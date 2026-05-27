@@ -101,7 +101,7 @@ function TeamPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
       const res = await fetch(`${apiBase}/team/${id}/role`, {
-        method: "PATCH",
+        method: "POST",
         headers,
         credentials: "include",
         body: JSON.stringify({ role })
