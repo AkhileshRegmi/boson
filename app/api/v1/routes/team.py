@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.user import UserResponse
 from app.api.deps import get_current_user, RequireRole
 from app.core.security import get_password_hash
+from app.services.activity_logger import log_activity
 
 router = APIRouter(prefix="/team", tags=["team"])
 
@@ -19,12 +20,11 @@ class UserCreateInput(BaseModel):
     email: str
     role: str
 
-@router.get("/fetch", response_model=List[UserResponse])
+@router.get("/fetch", response_model=List[UserResponse], dependencies=[Depends(RequireRole(["SUPERADMIN", "ADMIN"]))])
 def get_team(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["SUPERADMIN", "ADMIN"]))
 ):
     return db.query(User).offset(skip).limit(limit).all()
 
@@ -55,10 +55,7 @@ def update_role(
         
     old_role = target_user.role
     target_user.role = role_update.role
-    db.commit()
-    db.refresh(target_user)
     
-    from app.services.activity_logger import log_activity
     log_activity(
         db=db,
         action_type="member_role_updated",
@@ -69,7 +66,7 @@ def update_role(
     
     return target_user
 
-@router.post("/create", response_model=UserResponse)
+@router.post("/create", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_member(
     user_in: UserCreateInput,
     db: Session = Depends(get_db),
@@ -96,10 +93,7 @@ def create_member(
         role=user_in.role
     )
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
     
-    from app.services.activity_logger import log_activity
     log_activity(
         db=db,
         action_type="member_created",
@@ -124,10 +118,7 @@ def reset_member_password(
         raise HTTPException(status_code=403, detail="Cannot reset the password of a SUPERADMIN")
         
     target_user.hashed_password = get_password_hash(target_user.email)
-
-    db.commit()
     
-    from app.services.activity_logger import log_activity
     log_activity(
         db=db,
         action_type="member_password_reset",

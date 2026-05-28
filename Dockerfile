@@ -1,5 +1,7 @@
 FROM oven/bun:1-alpine
 
+ENV TZ="Asia/Kathmandu"
+
 # Install Python 3, pip, and build tools
 RUN apk add --no-cache python3 py3-pip python3-dev build-base
 

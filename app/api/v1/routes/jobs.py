@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import case, cast, Date, func
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import get_db
 from app.models.job import Job
 from app.schemas.job import JobCreate, JobResponse, JobStatusUpdate
 from app.api.deps import RequireRole, get_current_user
 from app.models.user import User
+from app.services.activity_logger import log_activity
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -33,22 +36,21 @@ def get_closed_jobs(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    from datetime import datetime, timezone
-    all_closed = db.query(Job).filter(Job.status.like("Closed%")).all()
-    result = []
-    for j in all_closed:
-        try:
-            if ":" in j.status:
-                date_str = j.status.split(":")[1]
-                closed_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            else:
-                closed_date = j.postedDate.replace(tzinfo=timezone.utc)
-            delta = datetime.now(timezone.utc) - closed_date
-            if delta.days < 30:
-                result.append(j)
-        except Exception:
-            result.append(j)
-    return result[skip : skip + limit]
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).date()
+    
+    closed_date = case(
+        (Job.status.like("Closed:%"), cast(func.split_part(Job.status, ":", 2), Date)),
+        else_=cast(Job.postedDate, Date)
+    )
+    
+    return (
+        db.query(Job)
+        .filter(Job.status.like("Closed%"))
+        .filter(closed_date >= thirty_days_ago)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 @router.get("/archived", response_model=List[JobResponse])
 def get_archived_jobs(
@@ -56,22 +58,21 @@ def get_archived_jobs(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    from datetime import datetime, timezone
-    all_closed = db.query(Job).filter(Job.status.like("Closed%")).all()
-    result = []
-    for j in all_closed:
-        try:
-            if ":" in j.status:
-                date_str = j.status.split(":")[1]
-                closed_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            else:
-                closed_date = j.postedDate.replace(tzinfo=timezone.utc)
-            delta = datetime.now(timezone.utc) - closed_date
-            if delta.days >= 30:
-                result.append(j)
-        except Exception:
-            pass
-    return result[skip : skip + limit]
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).date()
+    
+    closed_date = case(
+        (Job.status.like("Closed:%"), cast(func.split_part(Job.status, ":", 2), Date)),
+        else_=cast(Job.postedDate, Date)
+    )
+    
+    return (
+        db.query(Job)
+        .filter(Job.status.like("Closed%"))
+        .filter(closed_date < thirty_days_ago)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 @router.get("/departments", response_model=List[str])
 def get_departments(
@@ -81,7 +82,7 @@ def get_departments(
     result = [d[0] for d in departments if d[0]]
     return sorted(result)
 
-@router.post("/create", response_model=JobResponse)
+@router.post("/create", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 def create_job(
     job: JobCreate, 
     db: Session = Depends(get_db),
@@ -89,10 +90,7 @@ def create_job(
 ):
     db_job = Job(**job.model_dump())
     db.add(db_job)
-    db.commit()
-    db.refresh(db_job)
     
-    from app.services.activity_logger import log_activity
     log_activity(
         db=db,
         action_type="job_created",
@@ -113,10 +111,7 @@ def update_job_status(
 ):
     db_job = db.query(Job).filter(Job.id == job_id).first()
     if not db_job:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    from datetime import datetime, timezone
     
     # Enforce archiving rules: cannot reopen a job closed for 30 days or more
     if status_update.status == "Active" and db_job.status and db_job.status.startswith("Closed"):
@@ -130,7 +125,6 @@ def update_job_status(
                 
             delta = datetime.now(timezone.utc) - closed_date
             if delta.days >= 30:
-                from fastapi import HTTPException
                 raise HTTPException(
                     status_code=400, 
                     detail="This job has been closed for more than 30 days and is archived. It cannot be reopened."
@@ -142,11 +136,7 @@ def update_job_status(
         db_job.status = f"Closed:{datetime.now(timezone.utc).date().isoformat()}"
     else:
         db_job.status = status_update.status
-
-    db.commit()
-    db.refresh(db_job)
     
-    from app.services.activity_logger import log_activity
     log_activity(
         db=db,
         action_type="job_status_updated",

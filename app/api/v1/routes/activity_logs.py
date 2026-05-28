@@ -10,14 +10,13 @@ from app.models.user import User
 
 router = APIRouter(prefix="/activity-logs", tags=["activity-logs"])
 
-@router.get("/fetch", response_model=PaginatedActivityLogsResponse)
+@router.get("/fetch", response_model=PaginatedActivityLogsResponse, dependencies=[Depends(RequireRole(["SUPERADMIN", "ADMIN"]))])
 def get_activity_logs(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     action_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["SUPERADMIN", "ADMIN"]))
 ):
     """
     Fetch activity logs sorted by timestamp descending, paginated and filtered.
@@ -41,11 +40,11 @@ def get_activity_logs(
     logs = query.order_by(ActivityLog.timestamp.desc()).offset(offset).limit(size).all()
     pages = (total + size - 1) // size if total > 0 else 0
     
-    return {
-        "items": logs,
-        "total": total,
-        "page": page,
-        "size": size,
-        "pages": pages
-    }
+    return PaginatedActivityLogsResponse(
+        items=logs,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
 

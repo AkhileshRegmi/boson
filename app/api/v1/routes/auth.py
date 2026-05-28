@@ -72,8 +72,6 @@ def change_password(
         )
         
     current_user.hashed_password = get_password_hash(data.new_password)
-    db.commit()
-    db.refresh(current_user)
     
     from app.services.activity_logger import log_activity
     log_activity(

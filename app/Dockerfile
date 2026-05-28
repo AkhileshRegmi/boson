@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+ENV TZ="Asia/Kathmandu"
+
 WORKDIR /usr/src/app
 
 COPY requirements.txt .

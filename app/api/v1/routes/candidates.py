@@ -12,16 +12,18 @@ from fastapi import (
     Query,
     Header,
     Request,
+    status,
 )
 from sqlalchemy import String
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 
 from app.core.database import get_db, SessionLocal
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.user import User
+from app.services.activity_logger import log_activity
 from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
@@ -124,10 +126,6 @@ async def evaluate_candidate_background(
         candidate.strengths = eval_result.get("strengths", [])
         candidate.weaknesses = eval_result.get("weaknesses", [])
 
-        db.commit()
-
-        from app.services.activity_logger import log_activity
-
         log_activity(
             db=db,
             action_type="candidate_evaluated",
@@ -149,7 +147,7 @@ async def evaluate_candidate_background(
         db.close()
 
 
-@router.post("/submit", response_model=CandidateResponse)
+@router.post("/submit", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def submit_application(
     request: Request,
@@ -296,9 +294,6 @@ async def submit_application(
     
     # Atomic increment of applicant count (H9)
     db.query(Job).filter(Job.id == job.id).update({Job.applicants: Job.applicants + 1})
-    
-    db.commit()
-    db.refresh(db_candidate)
 
     background_tasks.add_task(
         evaluate_candidate_background,
@@ -306,8 +301,6 @@ async def submit_application(
         job_id=job.id,
         candidate_data=cand_data,
     )
-
-    from app.services.activity_logger import log_activity
 
     log_activity(
         db=db,
@@ -322,7 +315,7 @@ async def submit_application(
     return db_candidate
 
 
-@router.get("/fetch", response_model=PaginatedCandidatesResponse)
+@router.get("/fetch", response_model=PaginatedCandidatesResponse, dependencies=[Depends(get_current_user)])
 def get_candidates(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=10000),
@@ -335,7 +328,6 @@ def get_candidates(
     sort_by: str = Query("match"),
     sort_order: str = Query("desc"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     query = db.query(Candidate)
 
@@ -403,14 +395,12 @@ def get_candidates(
     }
 
 
-@router.get("/reports")
+@router.get("/reports", dependencies=[Depends(get_current_user)])
 def get_recruitment_report(
     start: str = Query(...),
     end: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    from datetime import datetime, time, timezone
     try:
         start_dt = datetime.combine(datetime.strptime(start, "%Y-%m-%d"), time.min).replace(tzinfo=timezone.utc)
         end_dt = datetime.combine(datetime.strptime(end, "%Y-%m-%d"), time.max).replace(tzinfo=timezone.utc)
@@ -494,11 +484,10 @@ def get_recruitment_report(
     }
 
 
-@router.get("/{candidate_id}", response_model=CandidateResponse)
+@router.get("/{candidate_id}", response_model=CandidateResponse, dependencies=[Depends(get_current_user)])
 def get_candidate_by_id(
     candidate_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
     if not candidate:
@@ -532,12 +521,7 @@ def update_candidate_stage(
         past.append(old_stage)
         candidate.pastStages = past
 
-    db.commit()
-    db.refresh(candidate)
-
     # Use the centralized activity logger
-    from app.services.activity_logger import log_activity
-
     log_activity(
         db=db,
         action_type="candidate_stage_updated",
@@ -578,11 +562,6 @@ def add_candidate_note(
     current_notes = list(candidate.notes) if candidate.notes else []
     current_notes.insert(0, new_note)
     candidate.notes = current_notes
-
-    db.commit()
-    db.refresh(candidate)
-
-    from app.services.activity_logger import log_activity
 
     log_activity(
         db=db,

@@ -22,4 +22,3 @@ def log_activity(
         candidate_id=candidate_id
     )
     db.add(log_entry)
-    db.commit()

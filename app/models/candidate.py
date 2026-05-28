@@ -1,16 +1,12 @@
-import uuid
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from datetime import datetime
 
-from app.core.database import Base
-from app.core.utils import generate_uuid
+from app.core.database import BaseModelDB
 
-class Candidate(Base):
+class Candidate(BaseModelDB):
     __tablename__ = "candidates"
-
-    id = Column(String, primary_key=True, default=generate_uuid)
     jobId = Column(String, ForeignKey("jobs.id"), nullable=False, index=True)
     
     # Flat compat fields
@@ -44,7 +40,7 @@ class Candidate(Base):
     # Pipeline & ATS Data
     stage = Column(String, default="Applied", index=True)
     pastStages = Column(JSONB, default=list)
-    appliedDate = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    appliedDate = Column(DateTime, default=datetime.now)
     match = Column(Integer, default=0)
     tier = Column(String, nullable=True, index=True)
     summary = Column(Text, nullable=True)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -12,8 +12,7 @@ class ActivityLogResponse(BaseModel):
     job_id: Optional[str] = None
     candidate_id: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedActivityLogsResponse(BaseModel):
     items: list[ActivityLogResponse]

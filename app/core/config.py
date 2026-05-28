@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 current_dir = os.path.dirname(os.path.abspath(__file__))
 env_file_path = os.path.join(current_dir, "..", "..", ".env")
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str
     DATABASE_URL: str
@@ -14,14 +15,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     GROQ_API_KEY: str
     BASE_URL: str
-    RECAPTCHA_API_KEY: Optional[str] = None
-    RECAPTCHA_PROJECT_ID: str = "project-82bfe42e-7174-448a-bb4"
-    RECAPTCHA_SITE_KEY: str = "6LecX_YsAAAAAIFXLXBgd-lRbLKsryG_SzqQJwgw"
+    RECAPTCHA_API_KEY: str
+    RECAPTCHA_PROJECT_ID: str
+    RECAPTCHA_SITE_KEY: str
 
     model_config = SettingsConfigDict(
-        env_file=(env_file_path, ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=(env_file_path, ".env"), env_file_encoding="utf-8", extra="ignore"
     )
+
 
 settings = Settings()
