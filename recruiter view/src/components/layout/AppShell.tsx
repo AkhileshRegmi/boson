@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Briefcase, Users, KanbanSquare, BarChart3, Shield,
   Search, Bell, Sun, Moon, LogOut, Plus, ChevronDown, FileSpreadsheet,
-  History, KeyRound,
+  History, KeyRound, FileUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "@/components/theme-provider";
@@ -17,18 +17,6 @@ import { JobModal } from "@/components/ats/JobModal";
 import { ChangePasswordModal } from "@/components/ats/ChangePasswordModal";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
-const baseNav: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/candidates", label: "Candidates", icon: Users },
-  { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
-  { to: "/reports", label: "Reports", icon: FileSpreadsheet },
-];
-const adminNav: NavItem[] = [
-  { to: "/team", label: "Team", icon: Shield },
-  { to: "/activity-logs", label: "Activity Logs", icon: History },
-];
 
 function KhaltiLogo() {
   return (
@@ -60,7 +48,27 @@ export function AppShell() {
   const isActive = (to: string, exact?: boolean) =>
     exact ? location.pathname === to : location.pathname.startsWith(to);
 
-  const nav = isAdmin ? [...baseNav, ...adminNav] : baseNav;
+  const showUploadCv = user?.role !== "VIEWER";
+
+  const section1: NavItem[] = [
+    { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    ...(showUploadCv ? [{ to: "/upload-cv", label: "Upload CV", icon: FileUp }] : []),
+  ];
+
+  const section2: NavItem[] = [
+    { to: "/jobs", label: "Jobs", icon: Briefcase },
+    { to: "/candidates", label: "Candidates", icon: Users },
+    { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+  ];
+
+  const section3: NavItem[] = [
+    { to: "/reports", label: "Reports", icon: FileSpreadsheet },
+    ...(isAdmin ? [
+      { to: "/team", label: "Team", icon: Shield },
+      { to: "/activity-logs", label: "Activity Logs", icon: History },
+    ] : []),
+  ];
+
   const displayName = user?.name ?? "Guest";
   const displayRole = user?.role ?? "Not signed in";
 
@@ -71,6 +79,33 @@ export function AppShell() {
       </div>
     );
   }
+
+  const renderNavItem = (item: NavItem) => {
+    const active = isActive(item.to, item.exact);
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.to}
+        to={item.to}
+        className={cn(
+          "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition",
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        )}
+      >
+        {active && (
+          <motion.span
+            layoutId="nav-pill"
+            className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
+        <Icon className="h-4 w-4" />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -89,33 +124,36 @@ export function AppShell() {
             </button>
           )}
         </div>
-        <nav className="flex-1 space-y-0.5 px-2 py-2">
-          {nav.map((item) => {
-            const active = isActive(item.to, item.exact);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="nav-pill"
-                    className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-6 px-2 py-4 overflow-y-auto">
+          {/* Section 1 */}
+          <div className="space-y-1">
+            <div className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              Overview
+            </div>
+            <div className="space-y-0.5">
+              {section1.map(renderNavItem)}
+            </div>
+          </div>
+
+          {/* Section 2 */}
+          <div className="space-y-1">
+            <div className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              Recruitment
+            </div>
+            <div className="space-y-0.5">
+              {section2.map(renderNavItem)}
+            </div>
+          </div>
+
+          {/* Section 3 */}
+          <div className="space-y-1">
+            <div className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              Management & Reports
+            </div>
+            <div className="space-y-0.5">
+              {section3.map(renderNavItem)}
+            </div>
+          </div>
         </nav>
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">

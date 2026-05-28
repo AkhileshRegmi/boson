@@ -132,9 +132,6 @@ function Dashboard() {
               <h2 className="text-sm font-semibold text-foreground">Applications per Job</h2>
               <p className="text-xs text-muted-foreground">Candidate status distribution for all active jobs</p>
             </div>
-            <Link to="/analytics" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-              View analytics <ArrowUpRight className="h-3 w-3" />
-            </Link>
           </div>
           <div className="h-64">
             {appsPerJob.length > 0 ? (

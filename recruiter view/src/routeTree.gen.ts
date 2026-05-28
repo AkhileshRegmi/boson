@@ -12,12 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppUploadCvRouteImport } from './routes/_app.upload-cv'
 import { Route as AppTeamRouteImport } from './routes/_app.team'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppPipelineRouteImport } from './routes/_app.pipeline'
 import { Route as AppJobsRouteImport } from './routes/_app.jobs'
 import { Route as AppCandidatesRouteImport } from './routes/_app.candidates'
-import { Route as AppAnalyticsRouteImport } from './routes/_app.analytics'
 import { Route as AppActivityLogsRouteImport } from './routes/_app.activity-logs'
 import { Route as AppJobsJobIdRouteImport } from './routes/_app.jobs.$jobId'
 import { Route as AppCandidatesCandidateIdRouteImport } from './routes/_app.candidates.$candidateId'
@@ -34,6 +34,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUploadCvRoute = AppUploadCvRouteImport.update({
+  id: '/upload-cv',
+  path: '/upload-cv',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTeamRoute = AppTeamRouteImport.update({
@@ -61,11 +66,6 @@ const AppCandidatesRoute = AppCandidatesRouteImport.update({
   path: '/candidates',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppActivityLogsRoute = AppActivityLogsRouteImport.update({
   id: '/activity-logs',
   path: '/activity-logs',
@@ -87,24 +87,24 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AppActivityLogsRoute
-  '/analytics': typeof AppAnalyticsRoute
   '/candidates': typeof AppCandidatesRouteWithChildren
   '/jobs': typeof AppJobsRouteWithChildren
   '/pipeline': typeof AppPipelineRoute
   '/reports': typeof AppReportsRoute
   '/team': typeof AppTeamRoute
+  '/upload-cv': typeof AppUploadCvRoute
   '/candidates/$candidateId': typeof AppCandidatesCandidateIdRoute
   '/jobs/$jobId': typeof AppJobsJobIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/activity-logs': typeof AppActivityLogsRoute
-  '/analytics': typeof AppAnalyticsRoute
   '/candidates': typeof AppCandidatesRouteWithChildren
   '/jobs': typeof AppJobsRouteWithChildren
   '/pipeline': typeof AppPipelineRoute
   '/reports': typeof AppReportsRoute
   '/team': typeof AppTeamRoute
+  '/upload-cv': typeof AppUploadCvRoute
   '/': typeof AppIndexRoute
   '/candidates/$candidateId': typeof AppCandidatesCandidateIdRoute
   '/jobs/$jobId': typeof AppJobsJobIdRoute
@@ -114,12 +114,12 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/activity-logs': typeof AppActivityLogsRoute
-  '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/candidates': typeof AppCandidatesRouteWithChildren
   '/_app/jobs': typeof AppJobsRouteWithChildren
   '/_app/pipeline': typeof AppPipelineRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/team': typeof AppTeamRoute
+  '/_app/upload-cv': typeof AppUploadCvRoute
   '/_app/': typeof AppIndexRoute
   '/_app/candidates/$candidateId': typeof AppCandidatesCandidateIdRoute
   '/_app/jobs/$jobId': typeof AppJobsJobIdRoute
@@ -130,24 +130,24 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/activity-logs'
-    | '/analytics'
     | '/candidates'
     | '/jobs'
     | '/pipeline'
     | '/reports'
     | '/team'
+    | '/upload-cv'
     | '/candidates/$candidateId'
     | '/jobs/$jobId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/activity-logs'
-    | '/analytics'
     | '/candidates'
     | '/jobs'
     | '/pipeline'
     | '/reports'
     | '/team'
+    | '/upload-cv'
     | '/'
     | '/candidates/$candidateId'
     | '/jobs/$jobId'
@@ -156,12 +156,12 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/activity-logs'
-    | '/_app/analytics'
     | '/_app/candidates'
     | '/_app/jobs'
     | '/_app/pipeline'
     | '/_app/reports'
     | '/_app/team'
+    | '/_app/upload-cv'
     | '/_app/'
     | '/_app/candidates/$candidateId'
     | '/_app/jobs/$jobId'
@@ -193,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/upload-cv': {
+      id: '/_app/upload-cv'
+      path: '/upload-cv'
+      fullPath: '/upload-cv'
+      preLoaderRoute: typeof AppUploadCvRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/team': {
@@ -228,13 +235,6 @@ declare module '@tanstack/react-router' {
       path: '/candidates'
       fullPath: '/candidates'
       preLoaderRoute: typeof AppCandidatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/analytics': {
-      id: '/_app/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/activity-logs': {
@@ -286,23 +286,23 @@ const AppJobsRouteWithChildren =
 
 interface AppRouteChildren {
   AppActivityLogsRoute: typeof AppActivityLogsRoute
-  AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppCandidatesRoute: typeof AppCandidatesRouteWithChildren
   AppJobsRoute: typeof AppJobsRouteWithChildren
   AppPipelineRoute: typeof AppPipelineRoute
   AppReportsRoute: typeof AppReportsRoute
   AppTeamRoute: typeof AppTeamRoute
+  AppUploadCvRoute: typeof AppUploadCvRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppActivityLogsRoute: AppActivityLogsRoute,
-  AppAnalyticsRoute: AppAnalyticsRoute,
   AppCandidatesRoute: AppCandidatesRouteWithChildren,
   AppJobsRoute: AppJobsRouteWithChildren,
   AppPipelineRoute: AppPipelineRoute,
   AppReportsRoute: AppReportsRoute,
   AppTeamRoute: AppTeamRoute,
+  AppUploadCvRoute: AppUploadCvRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
