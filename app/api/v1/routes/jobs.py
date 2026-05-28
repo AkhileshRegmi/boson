@@ -19,6 +19,60 @@ def get_jobs(
     jobs = db.query(Job).offset(skip).limit(limit).all()
     return jobs
 
+@router.get("/active", response_model=List[JobResponse])
+def get_active_jobs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    return db.query(Job).filter(Job.status == "Active").offset(skip).limit(limit).all()
+
+@router.get("/closed", response_model=List[JobResponse])
+def get_closed_jobs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime, timezone
+    all_closed = db.query(Job).filter(Job.status.like("Closed%")).all()
+    result = []
+    for j in all_closed:
+        try:
+            if ":" in j.status:
+                date_str = j.status.split(":")[1]
+                closed_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            else:
+                closed_date = j.postedDate.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - closed_date
+            if delta.days < 30:
+                result.append(j)
+        except Exception:
+            result.append(j)
+    return result[skip : skip + limit]
+
+@router.get("/archived", response_model=List[JobResponse])
+def get_archived_jobs(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime, timezone
+    all_closed = db.query(Job).filter(Job.status.like("Closed%")).all()
+    result = []
+    for j in all_closed:
+        try:
+            if ":" in j.status:
+                date_str = j.status.split(":")[1]
+                closed_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            else:
+                closed_date = j.postedDate.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - closed_date
+            if delta.days >= 30:
+                result.append(j)
+        except Exception:
+            pass
+    return result[skip : skip + limit]
+
 @router.get("/departments", response_model=List[str])
 def get_departments(
     db: Session = Depends(get_db)

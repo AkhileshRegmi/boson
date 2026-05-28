@@ -13,6 +13,9 @@ type NewJobInput = {
 
 type AtsState = {
   jobs: Job[];
+  activeJobs: Job[];
+  closedJobs: Job[];
+  archivedJobs: Job[];
   candidates: Candidate[];
   loading: boolean;
   selectedCandidateId: string | null;
@@ -20,6 +23,9 @@ type AtsState = {
   createJobOpen: boolean;
 
   fetchJobs: () => Promise<void>;
+  fetchActiveJobs: () => Promise<void>;
+  fetchClosedJobs: () => Promise<void>;
+  fetchArchivedJobs: () => Promise<void>;
   fetchCandidates: () => Promise<void>;
   openCandidate: (id: string) => void;
   closeCandidate: () => void;
@@ -39,6 +45,9 @@ let candidatesPromise: Promise<void> | null = null;
 
 export const useAts = create<AtsState>((set, get) => ({
   jobs: [],
+  activeJobs: [],
+  closedJobs: [],
+  archivedJobs: [],
   candidates: [],
   loading: true,
   selectedCandidateId: null,
@@ -58,6 +67,33 @@ export const useAts = create<AtsState>((set, get) => ({
       }
     })();
     return jobsPromise;
+  },
+
+  fetchActiveJobs: async () => {
+    try {
+      const activeJobs = await api.getActiveJobs();
+      set({ activeJobs, jobs: activeJobs });
+    } catch (e) {
+      console.error("Failed to fetch active jobs", e);
+    }
+  },
+
+  fetchClosedJobs: async () => {
+    try {
+      const closedJobs = await api.getClosedJobs();
+      set({ closedJobs, jobs: closedJobs });
+    } catch (e) {
+      console.error("Failed to fetch closed jobs", e);
+    }
+  },
+
+  fetchArchivedJobs: async () => {
+    try {
+      const archivedJobs = await api.getArchivedJobs();
+      set({ archivedJobs, jobs: archivedJobs });
+    } catch (e) {
+      console.error("Failed to fetch archived jobs", e);
+    }
   },
 
   fetchCandidates: async () => {
@@ -86,7 +122,7 @@ export const useAts = create<AtsState>((set, get) => ({
   createJob: async (j) => {
     try {
       const job = await api.createJob(j);
-      set((s) => ({ jobs: [job, ...s.jobs], createJobOpen: false }));
+      set((s) => ({ jobs: [job, ...s.jobs], activeJobs: [job, ...s.activeJobs], createJobOpen: false }));
       return job.id;
     } catch (e: any) {
       alert(e.message || "Failed to create job");
@@ -97,9 +133,13 @@ export const useAts = create<AtsState>((set, get) => ({
   closeJob: async (id) => {
     set((s) => ({
       jobs: s.jobs.map((j) => (j.id === id ? { ...j, status: "Closed" } : j)),
+      activeJobs: s.activeJobs.filter((j) => j.id !== id),
     }));
     try {
       await api.updateJobStatus(id, "Closed");
+      const active = await api.getActiveJobs();
+      const closed = await api.getClosedJobs();
+      set({ activeJobs: active, closedJobs: closed });
     } catch (e) {
       console.error("Failed to close job on server", e);
       const jobs = await api.getJobs();
@@ -109,9 +149,13 @@ export const useAts = create<AtsState>((set, get) => ({
   reopenJob: async (id) => {
     set((s) => ({
       jobs: s.jobs.map((j) => (j.id === id ? { ...j, status: "Active" } : j)),
+      closedJobs: s.closedJobs.filter((j) => j.id !== id),
     }));
     try {
       await api.updateJobStatus(id, "Active");
+      const active = await api.getActiveJobs();
+      const closed = await api.getClosedJobs();
+      set({ activeJobs: active, closedJobs: closed });
     } catch (e) {
       console.error("Failed to reopen job on server", e);
       const jobs = await api.getJobs();

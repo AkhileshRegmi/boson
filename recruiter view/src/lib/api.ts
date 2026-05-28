@@ -53,6 +53,9 @@ async function apiFetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
 export const api = {
   // Jobs
   getJobs: () => apiFetch<Job[]>("/jobs/fetch"),
+  getActiveJobs: () => apiFetch<Job[]>("/jobs/active"),
+  getClosedJobs: () => apiFetch<Job[]>("/jobs/closed"),
+  getArchivedJobs: () => apiFetch<Job[]>("/jobs/archived"),
   createJob: (data: Partial<Job>) =>
     apiFetch<Job>("/jobs/create", { method: "POST", body: JSON.stringify(data) }),
   updateJobStatus: (id: string, status: string) =>

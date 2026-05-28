@@ -12,23 +12,44 @@ const tabs = ["Active", "Closed"] as const;
 
 function JobsPage() {
   const jobs = useAts((s) => s.jobs);
-  const fetchJobs = useAts((s) => s.fetchJobs);
+  const activeJobs = useAts((s) => s.activeJobs);
+  const closedJobs = useAts((s) => s.closedJobs);
+  const archivedJobs = useAts((s) => s.archivedJobs);
+
+  const fetchActiveJobs = useAts((s) => s.fetchActiveJobs);
+  const fetchClosedJobs = useAts((s) => s.fetchClosedJobs);
+  const fetchArchivedJobs = useAts((s) => s.fetchArchivedJobs);
   const openCreateJob = useAts((s) => s.openCreateJob);
   const openJob = useAts((s) => s.openJob);
   const closeJob = useAts((s) => s.closeJob);
   const reopenJob = useAts((s) => s.reopenJob);
   const { isAdmin } = useAuth();
 
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
   const [tab, setTab] = useState<(typeof tabs)[number]>("Active");
   const [q, setQ] = useState("");
   const [dept, setDept] = useState<string>("All");
+  const [showOnlyArchived, setShowOnlyArchived] = useState(false);
 
   const [sortField, setSortField] = useState<string>("applicants");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+
+  // Fetch when tab or archive toggle changes
+  useEffect(() => {
+    if (tab === "Active") {
+      fetchActiveJobs();
+    } else if (tab === "Closed") {
+      if (showOnlyArchived) {
+        fetchArchivedJobs();
+      } else {
+        fetchClosedJobs();
+      }
+    }
+  }, [tab, showOnlyArchived, fetchActiveJobs, fetchClosedJobs, fetchArchivedJobs]);
+
+  useEffect(() => {
+    setShowOnlyArchived(false);
+  }, [tab]);
 
   const isArchived = (j: typeof jobs[number]) => {
     if (j.status === "Active") return false;
@@ -69,12 +90,23 @@ function JobsPage() {
     [jobs],
   );
 
-  const filtered = jobs.filter(
-    (j) =>
-      ((tab === "Active" && j.status === "Active") || (tab === "Closed" && j.status.startsWith("Closed"))) &&
+  const filtered = jobs.filter((j) => {
+    const matchTab = (tab === "Active" && j.status === "Active") || (tab === "Closed" && j.status.startsWith("Closed"));
+    if (!matchTab) return false;
+    
+    if (tab === "Closed") {
+      if (showOnlyArchived) {
+        if (!isArchived(j)) return false;
+      } else {
+        if (isArchived(j)) return false;
+      }
+    }
+
+    return (
       (dept === "All" || j.department === dept) &&
-      j.title.toLowerCase().includes(q.toLowerCase()),
-  );
+      j.title.toLowerCase().includes(q.toLowerCase())
+    );
+  });
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -134,9 +166,6 @@ function JobsPage() {
             )}
           >
             {t}
-            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px]">
-              {jobs.filter((j) => t === "Active" ? j.status === "Active" : j.status.startsWith("Closed")).length}
-            </span>
             {tab === t && (
               <motion.span layoutId="jobs-tab" className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
             )}
@@ -161,6 +190,17 @@ function JobsPage() {
               </p>
             </div>
           </div>
+          <button
+            onClick={() => setShowOnlyArchived(!showOnlyArchived)}
+            className={cn(
+              "shrink-0 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20",
+              showOnlyArchived
+                ? "bg-primary text-primary-foreground hover:bg-primary/95"
+                : "bg-background border border-border hover:bg-muted text-foreground"
+            )}
+          >
+            {showOnlyArchived ? "Show All Closed" : "View Archived"}
+          </button>
         </motion.div>
       )}
 
@@ -220,21 +260,32 @@ function JobsPage() {
                 </td>
               </tr>
             )}
-            {sorted.map((j) => (
-              <tr
-                key={j.id}
-                onClick={() => openJob(j.id)}
-                className="cursor-pointer border-t border-border transition hover:bg-muted/30"
-              >
-                <td className="px-5 py-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openJob(j.id); }}
-                    className="text-left font-medium hover:text-primary"
-                  >
-                    {j.title}
-                  </button>
-                  <div className="text-xs text-muted-foreground">{j.location} · {j.type}</div>
-                </td>
+            {sorted.map((j) => {
+              const archived = isArchived(j);
+              return (
+                <tr
+                  key={j.id}
+                  onClick={() => !archived && openJob(j.id)}
+                  className={cn(
+                    "border-t border-border transition",
+                    archived ? "cursor-default bg-muted/5" : "cursor-pointer hover:bg-muted/30"
+                  )}
+                >
+                  <td className="px-5 py-3">
+                    {archived ? (
+                      <span className="font-medium text-muted-foreground/80">
+                        {j.title}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openJob(j.id); }}
+                        className="text-left font-medium hover:text-primary"
+                      >
+                        {j.title}
+                      </button>
+                    )}
+                    <div className="text-xs text-muted-foreground">{j.location} · {j.type}</div>
+                  </td>
                 <td className="px-3 py-3 text-muted-foreground">{j.department}</td>
                 <td className="px-3 py-3 tabular-nums">{j.applicants}</td>
                 <td className="px-3 py-3 text-muted-foreground">
@@ -279,7 +330,8 @@ function JobsPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
       </div>
