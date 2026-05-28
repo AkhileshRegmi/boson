@@ -30,6 +30,40 @@ function JobsPage() {
   const [sortField, setSortField] = useState<string>("applicants");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  const isArchived = (j: typeof jobs[number]) => {
+    if (j.status === "Active") return false;
+    if (!j.status.startsWith("Closed")) return false;
+    
+    let dateStr = "";
+    if (j.status.includes(":")) {
+      dateStr = j.status.split(":")[1];
+    } else {
+      dateStr = j.postedDate;
+    }
+    
+    const closedDate = new Date(dateStr);
+    const diffTime = new Date().getTime() - closedDate.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    return diffDays >= 30;
+  };
+
+  const getClosedDateStr = (j: typeof jobs[number]) => {
+    if (j.status.includes(":")) {
+      return j.status.split(":")[1];
+    }
+    return j.postedDate;
+  };
+
+  const formatToDDMMYYYY = (dateStr: string) => {
+    if (!dateStr) return "N/A";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return "N/A";
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
   const departments = useMemo(
     () => ["All", ...Array.from(new Set(jobs.map((j) => j.department)))],
     [jobs],
@@ -37,7 +71,7 @@ function JobsPage() {
 
   const filtered = jobs.filter(
     (j) =>
-      j.status === tab &&
+      ((tab === "Active" && j.status === "Active") || (tab === "Closed" && j.status.startsWith("Closed"))) &&
       (dept === "All" || j.department === dept) &&
       j.title.toLowerCase().includes(q.toLowerCase()),
   );
@@ -101,7 +135,7 @@ function JobsPage() {
           >
             {t}
             <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px]">
-              {jobs.filter((j) => j.status === t).length}
+              {jobs.filter((j) => t === "Active" ? j.status === "Active" : j.status.startsWith("Closed")).length}
             </span>
             {tab === t && (
               <motion.span layoutId="jobs-tab" className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
@@ -109,6 +143,26 @@ function JobsPage() {
           </button>
         ))}
       </div>
+
+      {tab === "Closed" && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Lock className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold">View archived vacancies</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Roles closed for 30 days or more are automatically archived. You can view their candidate pool but cannot reopen them.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px] max-w-md">
@@ -146,13 +200,18 @@ function JobsPage() {
               <th onClick={() => handleSort("postedDate")} className="px-3 py-2.5 text-left font-medium cursor-pointer hover:bg-muted/60 select-none">
                 Posted{renderSortIcon("postedDate")}
               </th>
+              {tab === "Closed" && (
+                <th className="px-3 py-2.5 text-left font-medium select-none">
+                  Closed On
+                </th>
+              )}
               <th className="px-3 py-2.5 text-right font-medium select-none">Actions</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-16 text-center">
+                <td colSpan={tab === "Closed" ? 6 : 5} className="px-5 py-16 text-center">
                   <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-muted text-muted-foreground">
                     <Briefcase className="h-5 w-5" />
                   </div>
@@ -178,7 +237,14 @@ function JobsPage() {
                 </td>
                 <td className="px-3 py-3 text-muted-foreground">{j.department}</td>
                 <td className="px-3 py-3 tabular-nums">{j.applicants}</td>
-                <td className="px-3 py-3 text-muted-foreground">{j.postedDate}</td>
+                <td className="px-3 py-3 text-muted-foreground">
+                  {formatToDDMMYYYY(j.postedDate)}
+                </td>
+                {tab === "Closed" && (
+                  <td className="px-3 py-3 text-muted-foreground">
+                    {formatToDDMMYYYY(getClosedDateStr(j))}
+                  </td>
+                )}
                 <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1.5">
                     <Link
@@ -197,6 +263,10 @@ function JobsPage() {
                         >
                           <Lock className="h-3 w-3" /> Close
                         </button>
+                      ) : isArchived(j) ? (
+                        <span className="text-xs text-muted-foreground bg-muted/40 border border-border/50 px-2 py-1 rounded-md cursor-not-allowed">
+                          Archived
+                        </span>
                       ) : (
                         <button
                           onClick={() => reopenJob(j.id)}

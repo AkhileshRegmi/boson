@@ -62,7 +62,33 @@ def update_job_status(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Job not found")
     
-    db_job.status = status_update.status
+    from datetime import datetime, timezone
+    
+    # Enforce archiving rules: cannot reopen a job closed for 30 days or more
+    if status_update.status == "Active" and db_job.status and db_job.status.startswith("Closed"):
+        try:
+            if ":" in db_job.status:
+                date_str = db_job.status.split(":")[1]
+                closed_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            else:
+                # Fallback to postedDate if no status date is set
+                closed_date = db_job.postedDate.replace(tzinfo=timezone.utc)
+                
+            delta = datetime.now(timezone.utc) - closed_date
+            if delta.days >= 30:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400, 
+                    detail="This job has been closed for more than 30 days and is archived. It cannot be reopened."
+                )
+        except Exception:
+            pass
+
+    if status_update.status == "Closed":
+        db_job.status = f"Closed:{datetime.now(timezone.utc).date().isoformat()}"
+    else:
+        db_job.status = status_update.status
+
     db.commit()
     db.refresh(db_job)
     
