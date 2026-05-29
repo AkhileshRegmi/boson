@@ -135,6 +135,7 @@ async def evaluate_candidate_background(
             job_id=job.id,
             candidate_id=candidate.id,
         )
+        db.flush()
         logger.info(
             f"Background evaluation successfully completed for candidate {candidate.name}"
         )
@@ -294,6 +295,8 @@ async def submit_application(
     
     # Atomic increment of applicant count (H9)
     db.query(Job).filter(Job.id == job.id).update({Job.applicants: Job.applicants + 1})
+
+    db.flush()
 
     background_tasks.add_task(
         evaluate_candidate_background,
